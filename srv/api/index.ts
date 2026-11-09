@@ -97,8 +97,13 @@ async function APIRouter(app: FastifyInstance) {
 			if (!upstream.ok) return reply.status(502).send({ error: 'Game document could not be loaded.' });
 			const source = await upstream.text();
 			if (source.length > 8_000_000) return reply.status(413).send({ error: 'Game document is too large.' });
-			const compatibility = `<script>(function(){try{var n=window.navigator;if ('keyboard' in n && n.keyboard === null) Object.defineProperty(n,'keyboard',{configurable:true,value:{lock:function(){return Promise.resolve();},unlock:function(){}}});}catch(_){}})();</script>`;
-			const prepared = /<head\b[^>]*>/i.test(source) ? source.replace(/<head\b[^>]*>/i, match => `${match}${compatibility}`) : compatibility + source;
+			const compatibility = `<script>(function(){try{var n=window.navigator;if ('keyboard' in n && n.keyboard === null) Object.defineProperty(n,'keyboard',{configurable:true,value:{lock:function(){return Promise.resolve();},unlock:function(){}}});window.addEventListener('pointerdown',function(){try{window.focus();}catch(_){}} ,true);}catch(_){}})();</script>`;
+			const withoutLocalServer = source
+				.replaceAll('{ addr: "ws://localhost:8081/", name: "Local test server" },', '')
+				.replaceAll('{ addr: "ws://localhost:8081/", name: "Local test server" }', '')
+				.replaceAll("{ addr: 'ws://localhost:8081/', name: 'Local test server' },", '')
+				.replaceAll("{ addr: 'ws://localhost:8081/', name: 'Local test server' }", '');
+			const prepared = /<head\b[^>]*>/i.test(withoutLocalServer) ? withoutLocalServer.replace(/<head\b[^>]*>/i, match => `${match}${compatibility}`) : compatibility + withoutLocalServer;
 			const base = `<base href="${target.href.replace(/"/g, '&quot;')}">`;
 			const html = /<base\b/i.test(prepared)
 				? prepared

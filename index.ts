@@ -50,7 +50,13 @@ const server = Fastify({
 				socket.destroy();
 				return;
 			}
-			if (req.url?.endsWith('/w/')) {
+			let pathname = '';
+			try {
+				pathname = new URL(req.url || '/', 'http://space.internal').pathname;
+			} catch {
+				pathname = '';
+			}
+			if (pathname === '/w/' || pathname === '/w') {
 				wisp.routeRequest(req, socket as any, head);
 			} else {
 				socket.destroy();
