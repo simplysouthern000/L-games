@@ -6,6 +6,20 @@ import {
 
 export const defaultSearchTemplate = 'https://search.brave.com/search?q=%s';
 
+/** Raw GitHub serves HTML files as text/plain. Route those game documents
+ * through the server so the browser receives a real HTML document. */
+export function normalizeGameDocumentUrl(input: string, logicalOrigin: string): string {
+	try {
+		const url = new URL(input, logicalOrigin + '/');
+		if (url.protocol === 'https:' && url.hostname === 'raw.githubusercontent.com' && /\.html?$/i.test(url.pathname)) {
+			return `${new URL(logicalOrigin).origin}/api/game-html?url=${encodeURIComponent(url.href)}`;
+		}
+	} catch {
+		/* Let normal navigation validation handle malformed input. */
+	}
+	return input;
+}
+
 /** Decode Scramjet's final URL token without including routing query/hash data. */
 export function decodeScramjetUrl(
 	value: string,

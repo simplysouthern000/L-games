@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Send, Trash2, UserRound, X } from 'lucide-react';
 
-type User = { username: string; admin: boolean };
+type User = { username: string; admin: boolean; root?: boolean };
 type LiveSession = { id: string; username: string; activity: string; lastSeen: number };
 type SiteControls = { maintenanceMode: boolean; gamesDisabled: boolean; proxyDisabled: boolean };
 const request = async (url: string, options?: RequestInit) => {
@@ -18,9 +18,10 @@ export const AdminPage = () => {
 	const [announcement, setAnnouncement] = useState('');
 	const [error, setError] = useState('');
 	const [controls, setControls] = useState<SiteControls>({ maintenanceMode: false, gamesDisabled: false, proxyDisabled: false });
+	const [isRootAdmin, setIsRootAdmin] = useState(false);
 
 	const refresh = async () => {
-		try { const [nextUsers, nextSessions, nextControls] = await Promise.all([request('/api/admin/users'), request('/api/admin/sessions'), request('/api/site-controls')]); setUsers(nextUsers); setSessions(nextSessions); setControls(nextControls); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not load admin data.'); }
+		try { const [nextUsers, nextSessions, nextControls, auth] = await Promise.all([request('/api/admin/users'), request('/api/admin/sessions'), request('/api/site-controls'), request('/api/auth/status')]); setUsers(nextUsers); setSessions(nextSessions); setControls(nextControls); setIsRootAdmin(auth?.isRootAdmin === true); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not load admin data.'); }
 	};
 	useEffect(() => {
 		void refresh();
@@ -57,7 +58,7 @@ export const AdminPage = () => {
 						<button className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-medium text-black"><Plus className="h-4 w-4" />Add user</button>
 					</form>
 					<div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/[0.03]">
-						{users.map(user => <div key={user.username} className="flex items-center justify-between gap-3 px-4 py-3"><span className="flex items-center gap-2 text-sm"><UserRound className="h-4 w-4 text-white/40" />{user.username}{user.admin && <span className="text-xs text-white/35">admin</span>}</span>{!user.admin && <span className="flex gap-2"><button className="text-xs text-white/45 hover:text-white" onClick={() => { const next = window.prompt('New password (8+ characters)'); if (next) void mutate(`/api/admin/users/${encodeURIComponent(user.username)}`, 'PATCH', { password: next }); }}>Change password</button><button aria-label={`Remove ${user.username}`} className="text-white/40 hover:text-red-300" onClick={() => { if (window.confirm(`Remove ${user.username}?`)) void mutate(`/api/admin/users/${encodeURIComponent(user.username)}`, 'DELETE'); }}><Trash2 className="h-4 w-4" /></button></span>}</div>)}
+						{users.map(user => <div key={user.username} className="flex items-center justify-between gap-3 px-4 py-3"><span className="flex items-center gap-2 text-sm"><UserRound className="h-4 w-4 text-white/40" />{user.username}{user.admin && <span className="text-xs text-white/35">{user.root ? 'primary admin' : 'admin'}</span>}</span>{!user.root && <span className="flex flex-wrap justify-end gap-2"><button className="text-xs text-white/45 hover:text-white" onClick={() => { const next = window.prompt('New password (8+ characters)'); if (next) void mutate(`/api/admin/users/${encodeURIComponent(user.username)}`, 'PATCH', { password: next }); }}>Change password</button>{isRootAdmin && <button className="text-xs text-white/45 hover:text-white" onClick={() => void mutate(`/api/admin/users/${encodeURIComponent(user.username)}/role`, 'PATCH', { admin: !user.admin })}>{user.admin ? 'Remove admin' : 'Make admin'}</button>}<button aria-label={`Remove ${user.username}`} className="text-white/40 hover:text-red-300" onClick={() => { if (window.confirm(`Remove ${user.username}?`)) void mutate(`/api/admin/users/${encodeURIComponent(user.username)}`, 'DELETE'); }}><Trash2 className="h-4 w-4" /></button></span>}</div>)}
 						{!users.length && <div className="px-4 py-6 text-sm text-white/35">No users yet.</div>}
 					</div>
 				</section>

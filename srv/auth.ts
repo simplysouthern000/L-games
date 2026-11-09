@@ -11,7 +11,7 @@ const USERS_FILE = join(process.cwd(), 'data', 'users.json');
 
 export type SpaceSession = { id: string; username: string; createdAt: number; lastSeen: number; activity: string; previewUrl?: string };
 type AttemptState = { count: number; resetAt: number };
-type StoredUser = { username: string; salt: string; hash: string; createdAt: number };
+type StoredUser = { username: string; salt: string; hash: string; createdAt: number; admin?: boolean };
 const sessions = new Map<string, SpaceSession>();
 const attempts = new Map<string, AttemptState>();
 
@@ -59,7 +59,6 @@ export const authenticate = (request: IncomingMessage, username: string, passwor
 	if (isLoginRateLimited(request)) return null;
 	if (!credentialsMatch(username, password)) { recordFailedLogin(request); return null; }
 	attempts.delete(getClientKey(request)); const token = randomBytes(32).toString('hex'); const now = Date.now();
-	for (const [oldToken, session] of sessions) if (session.username === username) sessions.delete(oldToken);
 	sessions.set(token, { id: randomBytes(12).toString('hex'), username, createdAt: now, lastSeen: now, activity: 'Browsing Space' });
 	return token;
 };
@@ -71,22 +70,49 @@ export const getSession = (request: IncomingMessage) => {
 };
 export const getAuthenticatedUsername = (request: IncomingMessage) => getSession(request)?.session.username ?? null;
 export const isAuthenticatedRequest = (request: IncomingMessage) => getSession(request) !== null;
-export const isAdminRequest = (request: IncomingMessage) => getAuthenticatedUsername(request) === process.env.SPACE_ADMIN_USERNAME;
-	export const touchSession = (request: IncomingMessage, activity?: string, previewUrl?: string) => {
+export const isRootAdminRequest = (request: IncomingMessage) => getAuthenticatedUsername(request) === process.env.SPACE_ADMIN_USERNAME;
+export const isAdminRequest = (request: IncomingMessage) => {
+	const username = getAuthenticatedUsername(request);
+	if (!username) return false;
+	return isRootAdminRequest(request) || readUsers().some(user => user.username === username && user.admin === true);
+};
+export const touchSession = (request: IncomingMessage, activity?: string, previewUrl?: string) => {
 	const current = getSession(request); if (!current) return null; current.session.lastSeen = Date.now(); if (activity) current.session.activity = activity.slice(0, 120); if (previewUrl !== undefined) current.session.previewUrl = previewUrl.slice(0, 2000); return current.session;
 };
-export const listActiveSessions = () => Array.from(sessions.values()).filter(session => session.lastSeen + SESSION_TTL_MS > Date.now());
+export const listActiveSessions = () => {
+	const active = new Map<string, SpaceSession>();
+	for (const session of sessions.values()) {
+		if (session.lastSeen + SESSION_TTL_MS <= Date.now()) continue;
+		const previous = active.get(session.username);
+		if (!previous || previous.lastSeen < session.lastSeen) active.set(session.username, session);
+	}
+	return Array.from(active.values());
+};
 export const findSessionById = (id: string) => Array.from(sessions.entries()).find(([, session]) => session.id === id);
 export const removeSessionById = (id: string) => { const found = findSessionById(id); if (!found) return null; sessions.delete(found[0]); return found[1]; };
+export const removeSessionsByUsername = (username: string) => {
+	let removed = false;
+	for (const [token, session] of sessions) if (session.username === username) { sessions.delete(token); removed = true; }
+	return removed;
+};
 export const listUsers = () => [
-	...(process.env.SPACE_ADMIN_USERNAME ? [{ username: process.env.SPACE_ADMIN_USERNAME, admin: true, createdAt: null }] : []),
-	...readUsers().map(user => ({ username: user.username, admin: false, createdAt: user.createdAt }))
+	...(process.env.SPACE_ADMIN_USERNAME ? [{ username: process.env.SPACE_ADMIN_USERNAME, admin: true, root: true, createdAt: null }] : []),
+	...readUsers().map(user => ({ username: user.username, admin: user.admin === true, root: false, createdAt: user.createdAt }))
 ];
 export const createUser = (username: string, password: string) => {
 	const users = readUsers(); if (isAdminUsername(username) || users.some(user => user.username === username)) return false;
 	const { salt, hash } = hashPassword(password); users.push({ username, salt, hash, createdAt: Date.now() }); writeUsers(users); return true;
 };
 export const updateUserPassword = (username: string, password: string) => { const users = readUsers(); const user = users.find(entry => entry.username === username); if (!user) return false; Object.assign(user, hashPassword(password)); writeUsers(users); return true; };
+export const setUserAdmin = (username: string, admin: boolean) => {
+	if (isAdminUsername(username)) return false;
+	const users = readUsers();
+	const user = users.find(entry => entry.username === username);
+	if (!user) return false;
+	user.admin = admin;
+	writeUsers(users);
+	return true;
+};
 export const deleteUser = (username: string) => {
 	if (isAdminUsername(username)) return false; const users = readUsers(); const next = users.filter(user => user.username !== username); if (next.length === users.length) return false; writeUsers(next);
 	for (const [token, session] of sessions) if (session.username === username) sessions.delete(token); return true;

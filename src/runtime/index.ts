@@ -107,6 +107,11 @@ export async function selectRuntime(
 				iframe.src = assetUrl(target.url, win.location.href);
 				return;
 			}
+			const targetUrl = new URL(target.url, win.location.origin);
+			if (targetUrl.origin === win.location.origin && targetUrl.pathname === '/api/game-html') {
+				iframe.src = targetUrl.href;
+				return;
+			}
 			if (session) {
 				await check();
 				if (!current()) return;

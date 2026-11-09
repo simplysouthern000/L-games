@@ -7,13 +7,15 @@ import {
 	isLoginRateLimited,
 	getAuthenticatedUsername,
 	isAdminRequest,
+	isRootAdminRequest,
 	listUsers,
 	createUser,
 	updateUserPassword,
 	deleteUser,
 	listActiveSessions,
 	findSessionById,
-	removeSessionById,
+	removeSessionsByUsername,
+	setUserAdmin,
 	touchSession,
 	sessionCookie
 } from '../auth';
@@ -34,7 +36,8 @@ async function APIRouter(app: FastifyInstance) {
 			return reply.send({
 				authenticated: username !== null,
 				username,
-				isAdmin: username === process.env.SPACE_ADMIN_USERNAME
+				isAdmin: isAdminRequest(request.raw),
+				isRootAdmin: isRootAdminRequest(request.raw)
 			});
 		}
 	);
@@ -82,6 +85,23 @@ async function APIRouter(app: FastifyInstance) {
 		if (!getAuthenticatedUsername(request.raw)) return reply.status(401).send({ error: 'Authentication required.' });
 		return reply.send(getSiteControls());
 	});
+	app.get('/api/game-html', async (request, reply) => {
+		if (!getAuthenticatedUsername(request.raw)) return reply.status(401).send({ error: 'Authentication required.' });
+		const query = request.query as { url?: unknown };
+		if (typeof query.url !== 'string' || query.url.length > 2000) return reply.status(400).send({ error: 'Invalid game URL.' });
+		let target: URL;
+		try { target = new URL(query.url); } catch { return reply.status(400).send({ error: 'Invalid game URL.' }); }
+		if (target.protocol !== 'https:' || target.hostname !== 'raw.githubusercontent.com' || !/\.html?$/i.test(target.pathname)) return reply.status(400).send({ error: 'Game host is not supported.' });
+		try {
+			const upstream = await fetch(target.href, { redirect: 'error' });
+			if (!upstream.ok) return reply.status(502).send({ error: 'Game document could not be loaded.' });
+			const source = await upstream.text();
+			if (source.length > 8_000_000) return reply.status(413).send({ error: 'Game document is too large.' });
+			const base = `<base href="${target.href.replace(/"/g, '&quot;')}">`;
+			const html = /<head\b[^>]*>/i.test(source) ? source.replace(/<head\b[^>]*>/i, match => `${match}${base}`) : `<!doctype html><html><head>${base}</head><body>${source}</body></html>`;
+			return reply.header('Content-Type', 'text/html; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(html);
+		} catch { return reply.status(502).send({ error: 'Game document could not be loaded.' }); }
+	});
 
 	const requireAdmin = (request: FastifyRequest, reply: FastifyReply) => {
 		if (isAdminRequest(request.raw)) return true;
@@ -107,6 +127,15 @@ async function APIRouter(app: FastifyInstance) {
 		const newPassword = typeof body.password === 'string' ? body.password : '';
 		if (!validPassword(newPassword)) return reply.status(400).send({ error: 'Password must be 8–128 characters.' });
 		if (!updateUserPassword(params.username, newPassword)) return reply.status(404).send({ error: 'User not found.' });
+		return reply.send({ ok: true });
+	});
+	app.patch('/api/admin/users/:username/role', async (request, reply) => {
+		if (!isRootAdminRequest(request.raw)) return reply.status(403).send({ error: 'Only the primary administrator can change admin roles.' });
+		const params = request.params as { username: string };
+		const body = (request.body ?? {}) as { admin?: unknown };
+		if (typeof body.admin !== 'boolean') return reply.status(400).send({ error: 'Admin role must be true or false.' });
+		if (!setUserAdmin(params.username, body.admin)) return reply.status(404).send({ error: 'User not found.' });
+		sendToAdmins('users', listUsers());
 		return reply.send({ ok: true });
 	});
 	app.delete('/api/admin/users/:username', async (request, reply) => {
@@ -160,7 +189,7 @@ async function APIRouter(app: FastifyInstance) {
 	app.post('/api/admin/sessions/:id/kick', async (request, reply) => sessionAction(request, reply, username => sendToUser(username, 'kick', {})));
 	app.post('/api/admin/sessions/:id/signout', async (request, reply) => sessionAction(request, reply, username => {
 		sendToUser(username, 'signout', {});
-		removeSessionById((request.params as { id: string }).id);
+		removeSessionsByUsername(username);
 	}));
 	app.post('/api/admin/sessions/:id/jumpscare', async (request, reply) => {
 		if (!requireAdmin(request, reply)) return;

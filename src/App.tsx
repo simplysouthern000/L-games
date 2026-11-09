@@ -15,6 +15,7 @@ import type { SpaceRuntime } from './runtime';
 import {
 	defaultSearchTemplate,
 	formatInput,
+	normalizeGameDocumentUrl,
 	resolveNavigation
 } from './runtime/navigation';
 import { applyAccentColor } from './runtime/accent-color';
@@ -347,8 +348,11 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 							'search',
 							defaultSearchTemplate
 						);
+						const navigationInput = options.kind === 'game'
+							? normalizeGameDocumentUrl(nextInput, window.location.origin)
+							: nextInput;
 						const target = resolveNavigation(
-							formatInput(nextInput, template),
+							formatInput(navigationInput, template),
 							window.location.origin
 						);
 						resolvedUrl =
