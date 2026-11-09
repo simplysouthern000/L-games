@@ -97,12 +97,14 @@ async function APIRouter(app: FastifyInstance) {
 			if (!upstream.ok) return reply.status(502).send({ error: 'Game document could not be loaded.' });
 			const source = await upstream.text();
 			if (source.length > 8_000_000) return reply.status(413).send({ error: 'Game document is too large.' });
+			const compatibility = `<script>(function(){try{var n=window.navigator;if ('keyboard' in n && n.keyboard === null) Object.defineProperty(n,'keyboard',{configurable:true,value:{lock:function(){return Promise.resolve();},unlock:function(){}}});}catch(_){}})();</script>`;
+			const prepared = /<head\b[^>]*>/i.test(source) ? source.replace(/<head\b[^>]*>/i, match => `${match}${compatibility}`) : compatibility + source;
 			const base = `<base href="${target.href.replace(/"/g, '&quot;')}">`;
-			const html = /<base\b/i.test(source)
-				? source
-				: /<head\b[^>]*>/i.test(source)
-					? source.replace(/<head\b[^>]*>/i, match => `${match}${base}`)
-					: `<!doctype html><html><head>${base}</head><body>${source}</body></html>`;
+			const html = /<base\b/i.test(prepared)
+				? prepared
+				: /<head\b[^>]*>/i.test(prepared)
+					? prepared.replace(/<head\b[^>]*>/i, match => `${match}${base}`)
+					: `<!doctype html><html><head>${base}</head><body>${prepared}</body></html>`;
 			return reply.header('Content-Type', 'text/html; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(html);
 		} catch { return reply.status(502).send({ error: 'Game document could not be loaded.' }); }
 	});
@@ -200,6 +202,13 @@ async function APIRouter(app: FastifyInstance) {
 		const body = (request.body ?? {}) as { imageUrl?: unknown };
 		if (!validHttpUrl(body.imageUrl)) return reply.status(400).send({ error: 'Enter a valid image URL.' });
 		return sessionAction(request, reply, username => sendToUser(username, 'jumpscare', { imageUrl: body.imageUrl, duration: 10000 }));
+	});
+	app.post('/api/admin/sessions/:id/rotate', async (request, reply) => {
+		const body = (request.body ?? {}) as { duration?: unknown };
+		const duration = typeof body.duration === 'number' && Number.isFinite(body.duration)
+			? Math.min(30000, Math.max(1000, Math.round(body.duration)))
+			: 5000;
+		return sessionAction(request, reply, username => sendToUser(username, 'rotate', { duration }));
 	});
 
 	// Server only route that the frontend can reference for detection of static shit

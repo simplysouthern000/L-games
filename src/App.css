@@ -12,3 +12,8 @@
 .live-banner {
 	animation: live-banner-in-out 7.4s ease both;
 }
+
+html.live-rotated {
+	transform: rotate(180deg);
+	transform-origin: center center;
+}

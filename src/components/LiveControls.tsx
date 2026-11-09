@@ -4,6 +4,7 @@ type Overlay = { kind: 'banner' | 'jumpscare'; text?: string; imageUrl?: string 
 
 export const LiveControls = ({ activity, previewUrl }: { activity: string; previewUrl?: string }) => {
 	const [overlay, setOverlay] = useState<Overlay>(null);
+	const [rotated, setRotated] = useState(false);
 
 	useEffect(() => {
 		const source = new EventSource('/api/events');
@@ -19,12 +20,24 @@ export const LiveControls = ({ activity, previewUrl }: { activity: string; previ
 			setOverlay({ kind: 'jumpscare', imageUrl: data.imageUrl });
 			window.setTimeout(() => setOverlay(null), 10000);
 		};
+		const rotate = (event: MessageEvent) => {
+			const data = read(event);
+			const duration = typeof data.duration === 'number' ? Math.max(1000, Math.min(30000, data.duration)) : 5000;
+			setRotated(true);
+			window.setTimeout(() => setRotated(false), duration);
+		};
 		source.addEventListener('banner', banner); source.addEventListener('jumpscare', jumpscare);
+		source.addEventListener('rotate', rotate);
 		source.addEventListener('redirect', event => { const data = read(event); if (typeof data.url === 'string') window.location.assign(data.url); });
 		source.addEventListener('kick', () => window.location.assign('/space'));
 		source.addEventListener('signout', async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.assign('/login.html'); });
 		return () => source.close();
 	}, []);
+
+	useEffect(() => {
+		document.documentElement.classList.toggle('live-rotated', rotated);
+		return () => document.documentElement.classList.remove('live-rotated');
+	}, [rotated]);
 
 	useEffect(() => {
 		const update = () => void fetch('/api/session/activity', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ activity, previewUrl }) });
