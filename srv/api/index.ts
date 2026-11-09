@@ -98,7 +98,11 @@ async function APIRouter(app: FastifyInstance) {
 			const source = await upstream.text();
 			if (source.length > 8_000_000) return reply.status(413).send({ error: 'Game document is too large.' });
 			const base = `<base href="${target.href.replace(/"/g, '&quot;')}">`;
-			const html = /<head\b[^>]*>/i.test(source) ? source.replace(/<head\b[^>]*>/i, match => `${match}${base}`) : `<!doctype html><html><head>${base}</head><body>${source}</body></html>`;
+			const html = /<base\b/i.test(source)
+				? source
+				: /<head\b[^>]*>/i.test(source)
+					? source.replace(/<head\b[^>]*>/i, match => `${match}${base}`)
+					: `<!doctype html><html><head>${base}</head><body>${source}</body></html>`;
 			return reply.header('Content-Type', 'text/html; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(html);
 		} catch { return reply.status(502).send({ error: 'Game document could not be loaded.' }); }
 	});
