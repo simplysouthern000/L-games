@@ -33,8 +33,11 @@ const readUsers = (): StoredUser[] => {
 const writeUsers = (users: StoredUser[]) => { mkdirSync(join(process.cwd(), 'data'), { recursive: true }); writeFileSync(USERS_FILE, JSON.stringify(users, null, 2)); };
 const hashPassword = (password: string, salt = randomBytes(16).toString('hex')) => ({ salt, hash: scryptSync(password, salt, 64).toString('hex') });
 const checkHash = (password: string, salt: string, expectedHash: string) => { const actual = scryptSync(password, salt, 64); const expected = Buffer.from(expectedHash, 'hex'); return expected.length === actual.length && timingSafeEqual(actual, expected); };
+const checkPlainPassword = (password: string, expected: string) => { const actual = Buffer.from(password); const configured = Buffer.from(expected); return actual.length === configured.length && timingSafeEqual(actual, configured); };
 const isAdminUsername = (username: string) => username === process.env.SPACE_ADMIN_USERNAME;
 const credentialsMatch = (username: string, password: string) => {
+	const directPassword = process.env.SPACE_ADMIN_PASSWORD;
+	if (isAdminUsername(username) && directPassword && checkPlainPassword(password, directPassword)) return true;
 	const salt = process.env.SPACE_ADMIN_PASSWORD_SALT;
 	const expectedHash = process.env.SPACE_ADMIN_PASSWORD_HASH;
 	if (isAdminUsername(username) && salt && expectedHash && checkHash(password, salt, expectedHash)) return true;
