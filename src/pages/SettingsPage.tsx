@@ -594,7 +594,7 @@ const presetColors = [
 const AccentColorControl = () => {
 	const [themeColor, setThemeColor] = useLocalStorage(
 		'themeColor',
-		'#8b5cf6'
+		'#0045ff'
 	);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const [hsv, setHsv] = useState<HsvColor>(() => hexToHsv(themeColor));
@@ -633,7 +633,7 @@ const AccentColorControl = () => {
 
 	return (
 		<div className="flex items-center gap-2.5">
-			{['#8b5cf6', '#ec4899', '#06b6d4', '#22c55e', '#f59e0b'].map(
+			{['#0045ff', '#8b5cf6', '#ec4899', '#06b6d4', '#22c55e', '#f59e0b'].map(
 				color => (
 					<button
 						key={color}
@@ -1248,43 +1248,150 @@ const ProxyPanel = () => {
 	);
 };
 
-const AboutPanel = () => (
-	<div className="flex flex-col gap-12">
-		<Section title="Application" delay={0.0}>
-			<Row label="Version" desc="Current build version">
-				<span className="text-sm text-white/30 font-mono">2.0.0</span>
-			</Row>
-			<Row label="Framework" desc="Technologies used">
-				<span className="text-sm text-white/30">React + Vite</span>
-			</Row>
-		</Section>
+const AboutPanel = () => {
+	const [reportOpen, setReportOpen] = useState(false);
+	const [kind, setKind] = useState<'bug' | 'suggestion'>('bug');
+	const [message, setMessage] = useState('');
+	const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
-		<Section title="Links" delay={0.06}>
-			<Row label="Source Code" desc="View the project on GitHub">
-				<Btn variant="ghost">Open</Btn>
-			</Row>
-			<Row label="Report a Bug" desc="Submit an issue or suggestion">
-				<Btn variant="ghost">Open</Btn>
-			</Row>
-		</Section>
+	const closeReport = () => {
+		if (status !== 'sending') {
+			setReportOpen(false);
+			setStatus('idle');
+		}
+	};
 
-		<Section title="Credits" delay={0.12}>
-			<Row
-				label="Game sources"
-				desc="Libraries contributing to the active game catalog"
-			>
-				<ul
-					className="text-sm text-white/50"
-					aria-label="Game-source credits"
-				>
-					{['Truffled', 'gn-math', 'Selenite', 'Velara'].map(name => (
-						<li key={name}>{name}</li>
-					))}
-				</ul>
-			</Row>
-		</Section>
-	</div>
-);
+	const submitReport = async () => {
+		if (message.trim().length < 3) return;
+		setStatus('sending');
+		try {
+			const response = await fetch('/api/report', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					kind,
+					message,
+					page: window.location.pathname
+				})
+			});
+			if (!response.ok) throw new Error('Report failed');
+			setStatus('sent');
+			setMessage('');
+		} catch {
+			setStatus('error');
+		}
+	};
+
+	return (
+		<>
+			<div className="flex flex-col gap-12">
+				<Section title="Application" delay={0.0}>
+					<Row label="Version" desc="Current build version">
+						<span className="text-sm text-white/30 font-mono">2.0.0</span>
+					</Row>
+					<Row label="Framework" desc="Technologies used">
+						<span className="text-sm text-white/30">React + Vite</span>
+					</Row>
+				</Section>
+
+				<Section title="Links" delay={0.06}>
+					<Row label="Report a Bug" desc="Submit a bug report or suggestion">
+						<Btn variant="ghost" onClick={() => setReportOpen(true)}>Open</Btn>
+					</Row>
+				</Section>
+
+				<Section title="Credits" delay={0.12}>
+					<Row
+						label="Game sources"
+						desc="Libraries contributing to the active game catalog"
+					>
+						<ul className="text-sm text-white/50" aria-label="Game-source credits">
+							{['Truffled', 'gn-math', 'Selenite', 'Velara'].map(name => (
+								<li key={name}>{name}</li>
+							))}
+						</ul>
+					</Row>
+				</Section>
+			</div>
+
+			<AnimatePresence>
+				{reportOpen && (
+					<motion.div
+						className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-6"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						onMouseDown={event => {
+							if (event.target === event.currentTarget) closeReport();
+						}}
+					>
+						<motion.div
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="feedback-title"
+							className="w-full max-w-lg rounded-2xl p-6"
+							style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+							initial={{ opacity: 0, y: 12, scale: 0.98 }}
+							animate={{ opacity: 1, y: 0, scale: 1 }}
+							exit={{ opacity: 0, y: 8, scale: 0.98 }}
+						>
+							<div className="flex items-start justify-between gap-4">
+								<div>
+									<h2 id="feedback-title" className="text-xl font-semibold text-white/90">Report or suggest</h2>
+									<p className="mt-1 text-sm text-white/35">Tell us what you would like improved.</p>
+								</div>
+								<button type="button" aria-label="Close feedback dialog" onClick={closeReport} className="rounded-lg p-2 text-white/35 hover:bg-white/5 hover:text-white/80">
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+
+							<div className="mt-6 flex gap-2">
+								{([['bug', 'Bug report'], ['suggestion', 'Suggestion']] as const).map(([value, label]) => (
+									<button
+										key={value}
+										type="button"
+										onClick={() => setKind(value)}
+										className="rounded-lg px-3 py-2 text-sm transition-colors"
+										style={{
+											color: kind === value ? '#fff' : 'rgba(255,255,255,0.45)',
+											background: kind === value ? 'color-mix(in srgb, var(--color-primary) 18%, transparent)' : 'rgba(255,255,255,0.04)',
+											border: `1px solid ${kind === value ? 'var(--color-primary)' : 'var(--color-border)'}`
+										}}
+									>
+										{label}
+									</button>
+								))}
+							</div>
+
+							<label className="mt-4 block text-sm text-white/55" htmlFor="feedback-message">What would you like to report or suggest?</label>
+							<textarea
+								id="feedback-message"
+								value={message}
+								onChange={event => setMessage(event.target.value)}
+								maxLength={2000}
+								rows={6}
+								placeholder="Describe the issue or idea..."
+								className="mt-2 w-full resize-y rounded-xl p-3 text-sm text-white/80 outline-none placeholder:text-white/25"
+								style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)' }}
+							/>
+
+							<div className="mt-2 flex items-center justify-between text-xs text-white/30">
+								<span>{message.length}/2000</span>
+								{status === 'error' && <span className="text-red-300">Could not send. Try again.</span>}
+								{status === 'sent' && <span className="text-emerald-300">Thanks — sent successfully.</span>}
+							</div>
+
+							<div className="mt-6 flex justify-end gap-3">
+								<Btn variant="ghost" onClick={closeReport}>Cancel</Btn>
+								<Btn onClick={() => void submitReport()}>{status === 'sending' ? 'Sending…' : 'Send feedback'}</Btn>
+							</div>
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</>
+	);
+};
 
 const panels: Record<string, () => ReactNode> = {
 	cloak: CloakPanel,

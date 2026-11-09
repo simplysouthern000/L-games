@@ -1,23 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sessions } from './Sessions';
-import { Gamepad2, History, Search, Settings } from 'lucide-react';
-import { SiDiscord } from '@icons-pack/react-simple-icons';
+import { Gamepad2, History, Search, Settings, ShieldCheck } from 'lucide-react';
 import logoImg from '@assets/logo.webp';
-import { openNightPlusLogin } from '@utils/nightplus';
 
 const navItems = [
 	{ id: 'home', label: 'Search', icon: Search },
 	{ id: 'games', label: 'Games', icon: Gamepad2 },
 	{ id: 'playback', label: 'Playback', icon: History },
 	{ id: 'settings', label: 'Settings', icon: Settings },
-	{ id: 'discord', label: 'Discord', icon: SiDiscord }
+	{ id: 'admin', label: 'Admin panel', icon: ShieldCheck }
 ];
 
 import type { Session } from '../App';
 
 interface SidebarProps {
 	activeItem: string;
+	isAdmin?: boolean;
 	onItemClick: (id: string) => void;
 	onHoverChange?: (hovered: boolean) => void;
 	sessions: Session[];
@@ -40,20 +38,12 @@ const VDivider = ({
 		<div
 			className="w-full flex justify-center"
 			style={{
-				filter: blur > 0 ? `blur(${blur}px)` : undefined,
-				transform,
+				transform: undefined,
 				pointerEvents: 'none',
-				margin: '-2px 0 0 0'
+				margin: '0.35rem 0'
 			}}
 		>
-			<svg width="32" height="8" viewBox="0 0 32 8" fill="none">
-				<path
-					d="M0 1C8 1 12 7 16 7C20 7 24 1 32 1"
-					stroke="rgba(255,255,255,0.2)"
-					strokeWidth="2"
-					strokeLinecap="round"
-				/>
-			</svg>
+			<div className="h-px w-6 bg-white/10" />
 		</div>
 	);
 };
@@ -202,20 +192,8 @@ const LogoImage = () => {
 			<img
 				src={logoImg}
 				alt=""
-				className="absolute inset-0 w-full h-full object-cover rounded-xl"
-				style={{ opacity: 0.85 }}
-			/>
-			<img
-				src={logoImg}
-				alt=""
-				className="absolute inset-0 h-full w-full object-cover rounded-xl"
-				style={{ opacity: 0.65, filter: 'blur(1px)' }}
-			/>
-			<img
-				src={logoImg}
-				alt=""
-				className="absolute inset-0 w-full h-full object-cover rounded-xl"
-				style={{ opacity: 1, filter: 'blur(5px)' }}
+				className="h-full w-full rounded-lg object-cover"
+				style={{ opacity: 0.9 }}
 			/>
 		</div>
 	);
@@ -223,44 +201,13 @@ const LogoImage = () => {
 
 export const Sidebar = ({
 	activeItem,
+	isAdmin = false,
 	onItemClick,
 	onHoverChange,
-	sessions,
-	activeSession,
-	maxSessions,
-	onSessionChange,
-	onAddSession,
-	onCloseSession,
 	alwaysVisible = false
 }: SidebarProps) => {
 	const [hovered, setHovered] = useState(false);
-	const navContainerRef = useRef<HTMLDivElement>(null);
-	const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-	const [indicatorY, setIndicatorY] = useState<number>(0);
-	const isHome = !navItems.some(item => item.id === activeItem);
-
-	const measurePosition = useCallback(() => {
-		requestAnimationFrame(() => {
-			const container = navContainerRef.current;
-			const btn =
-				buttonRefs.current[activeItem] ||
-				buttonRefs.current[navItems[0].id];
-			if (!container || !btn) return;
-			const containerRect = container.getBoundingClientRect();
-			const btnRect = btn.getBoundingClientRect();
-			setIndicatorY(
-				btnRect.top -
-					containerRect.top -
-					container.clientTop +
-					btnRect.height / 2 -
-					20
-			);
-		});
-	}, [activeItem]);
-
-	useEffect(() => {
-		measurePosition();
-	}, [measurePosition]);
+	const isHome = activeItem === '' || activeItem === 'home';
 
 	const handleHover = (isHovered: boolean) => {
 		setHovered(isHovered);
@@ -271,19 +218,18 @@ export const Sidebar = ({
 
 	return (
 		<div
-			className="fixed left-0 bottom-0 h-[calc(100vh-3.5rem)] w-4 z-50 flex flex-col items-center"
+			className="fixed left-0 bottom-0 z-50 flex h-[calc(100vh-3.5rem)] w-4 flex-col items-center"
 			onMouseEnter={() => handleHover(true)}
 			onMouseLeave={() => handleHover(false)}
 		>
 			<motion.div
-				className="fixed -left-12 top-1/2 w-13 h-80 rounded-full"
+				className="fixed left-0 top-1/2 h-24 w-1 rounded-r-md"
 				style={{
-					background: 'var(--color-surface)',
-					border: '1px solid var(--color-border)'
+					background: 'var(--color-border-strong)'
 				}}
 				animate={{
 					opacity: isVisible ? 0 : 1,
-					x: isVisible ? -20 : 0,
+					x: isVisible ? -4 : 0,
 					y: '-50%'
 				}}
 				transition={{ duration: 0.2 }}
@@ -296,54 +242,16 @@ export const Sidebar = ({
 					opacity: isVisible ? 1 : 0
 				}}
 				transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-				className="fixed left-0 bottom-0 w-14 flex flex-col items-center justify-center-safe h-[calc(100vh-4rem+8px)]"
+				className="fixed bottom-0 left-0 flex h-[calc(100vh-4rem+8px)] w-16 flex-col items-center justify-center-safe"
 			>
 				<div
-					ref={navContainerRef}
-					className="relative rounded-full w-14 flex flex-col items-center"
+					className="relative flex w-14 flex-col items-center rounded-xl"
 					style={{
-						background: 'var(--color-surface)',
+						background: 'rgba(22, 22, 22, 0.96)',
 						border: '1px solid var(--color-border)',
-						padding: '0.875rem 0.5rem'
+						padding: '0.75rem 0.35rem'
 					}}
 				>
-					<motion.div
-						className="absolute top-0 left-1/2 w-10 h-10 rounded-full pointer-events-none z-20"
-						style={{
-							background:
-								'color-mix(in srgb, var(--color-primary) 20%, transparent)',
-							boxShadow:
-								'0px 0px 15px 2px color-mix(in srgb, var(--color-primary) 40%, transparent), inset 0px 0px 8px 2px color-mix(in srgb, var(--color-primary-light) 30%, transparent)',
-							x: '-50%'
-						}}
-						initial={false}
-						animate={{
-							y: isHome ? 10 : indicatorY,
-							scaleX: isHome ? 0.8 : [1, 1.05, 1],
-							scaleY: isHome ? 0.8 : [1, 1.05, 1],
-							opacity: isHome ? 0 : 1
-						}}
-						transition={{
-							y: {
-								type: isHome ? 'tween' : 'spring',
-								stiffness: 400,
-								damping: 22,
-								mass: 0.8
-							},
-							scaleX: {
-								repeat: Infinity,
-								duration: 2.5,
-								ease: 'easeInOut'
-							},
-							scaleY: {
-								repeat: Infinity,
-								duration: 2.5,
-								ease: 'easeInOut'
-							},
-							opacity: { duration: 0.15 }
-						}}
-					/>
-
 					<motion.button
 						aria-label="Home"
 						whileHover={{ scale: 1.1 }}
@@ -354,99 +262,30 @@ export const Sidebar = ({
 						<LogoImage />
 					</motion.button>
 
-					<VDivider
-						blur={2}
-						transform="translateY(12px) scaleY(1.2)"
-					/>
-					<VDivider
-						blur={3}
-						transform="translateY(6px) scaleY(0.8)"
-					/>
-					<VDivider
-						blur={2}
-						transform="translateY(-2px) scaleY(0.5)"
-					/>
-					<VDivider blur={1.5} transform="translateY(-8px)" />
-					<VDivider
-						blur={1}
-						transform="translateY(-15px) scaleY(0.6)"
-					/>
-
-					{navItems.map(item => {
+					{navItems.filter(item => isAdmin || item.id !== 'admin').map(item => {
 						const Icon = item.icon;
-						const isActive = activeItem === item.id;
+						const isActive = item.id === 'home' ? isHome : activeItem === item.id;
 						return (
 							<motion.button
 								key={item.id}
 								aria-label={item.label}
 								title={item.label}
-								ref={el => {
-									buttonRefs.current[item.id] = el;
-								}}
-								whileHover={{ scale: 1.1 }}
+								whileHover={{ scale: 1.04 }}
 								whileTap={{ scale: 0.95 }}
 								onClick={() => {
-									if (item.id === 'discord') {
-										window.dispatchEvent(
-											new CustomEvent('space:navigate', {
-												detail: {
-													url: 'https://discord.night-x.com',
-													target: 'active'
-												}
-											})
-										);
-									} else {
-										onItemClick(
-											item.id === 'home' ? '' : item.id
-										);
-									}
+									onItemClick(item.id === 'home' ? '' : item.id);
 								}}
-								className="relative w-10 h-10 rounded-full flex items-center justify-center"
+								className="relative z-10 flex h-9 w-9 items-center justify-center rounded-lg"
 							>
 								<Icon
-									className={`w-5 h-5 transition-colors duration-200 ${isActive ? 'text-white' : 'text-zinc-500'}`}
+									strokeWidth={isActive ? 2.5 : 1.8}
+									className={`h-5 w-5 transition-all duration-200 ${isActive ? 'scale-105 text-white' : 'text-zinc-500'}`}
 								/>
 							</motion.button>
 						);
 					})}
 
-					<VDivider
-						blur={2}
-						transform="translateY(12px) scaleY(1.2)"
-					/>
-					<VDivider
-						blur={3}
-						transform="translateY(6px) scaleY(0.8)"
-					/>
-					<VDivider
-						blur={2}
-						transform="translateY(-2px) scaleY(0.5)"
-					/>
-					<VDivider blur={1.5} transform="translateY(-8px)" />
-					<VDivider
-						blur={1}
-						transform="translateY(-15px) scaleY(0.6)"
-					/>
-
-					<motion.button
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={() => void openNightPlusLogin()}
-						title="Night+"
-					>
-						<NightPlusIcon />
-					</motion.button>
 				</div>
-
-				<Sessions
-					sessions={sessions}
-					activeSession={activeSession}
-					maxSessions={maxSessions}
-					highlightActive={activeItem === 'home' || isHome}
-					onSessionChange={onSessionChange}
-					onAddSession={onAddSession}
-					onCloseSession={onCloseSession}
-				/>
 			</motion.nav>
 		</div>
 	);

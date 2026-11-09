@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Sidebar } from './components/Sidebar';
+import { LiveControls } from './components/LiveControls';
 import { TopBar } from './components/TopBar';
 import { SpaceStars } from './components/SpaceStars';
 import {
@@ -83,6 +84,8 @@ interface NavigateSessionOptions extends NavigationMeta {
 	recordSearch?: boolean;
 }
 
+type SiteControls = { maintenanceMode: boolean; gamesDisabled: boolean; proxyDisabled: boolean };
+
 const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 	useTabCloak();
 	const location = useLocation();
@@ -93,7 +96,9 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 	const [particles] = useLocalStorage('particles', true);
 	const [bgMode] = useLocalStorage('bgMode', 'solid');
 	const [bgValue] = useLocalStorage('bgValue', '#000000');
-	const [themeColor] = useLocalStorage('themeColor', '#8b5cf6');
+	const [themeColor] = useLocalStorage('themeColor', '#0045ff');
+	const [isAdmin, setIsAdmin] = useState(false);
+	const [siteControls, setSiteControls] = useState<SiteControls>({ maintenanceMode: false, gamesDisabled: false, proxyDisabled: false });
 	const [autoCapSessions] = useLocalStorage('autoCapSessions', true);
 	const [savedGamesState, setSavedGamesState] = useLocalStorage(
 		'savedGamesState',
@@ -110,6 +115,17 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 	const maxSessions = autoCapSessions
 		? Math.min(screenCap, maxSessionsLimit)
 		: maxSessionsLimit;
+
+	useEffect(() => {
+		void fetch('/api/auth/status')
+			.then(response => (response.ok ? response.json() : null))
+			.then(data => setIsAdmin(data?.isAdmin === true))
+			.catch(() => setIsAdmin(false));
+	}, []);
+	useEffect(() => {
+		const load = () => void fetch('/api/site-controls').then(response => response.ok ? response.json() : null).then(data => { if (data) setSiteControls(data); }).catch(() => undefined);
+		load(); const timer = window.setInterval(load, 5000); return () => window.clearInterval(timer);
+	}, []);
 
 	useEffect(() => {
 		if (!autoCapSessions) return;
@@ -311,6 +327,7 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 		) => {
 			if (!rawSessions.current.some(session => session.id === sessionId))
 				return;
+			if (siteControls.maintenanceMode || (siteControls.proxyDisabled && input.trim())) return;
 			const owner = { token: Symbol('navigation'), preparing: true };
 			navigationOwnersRef.current[sessionId] = owner;
 			const nextInput = input.trim();
@@ -432,7 +449,9 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 			finishSessionLoad,
 			recordSearchVisit,
 			recordSessionVisit,
-			savedGamesState
+			savedGamesState,
+			siteControls.maintenanceMode,
+			siteControls.proxyDisabled
 		]
 	);
 
@@ -442,6 +461,7 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 
 	const navigateFromGamesPage = useCallback(
 		(detail: SpaceNavigateDetail) => {
+			if (siteControls.maintenanceMode || siteControls.gamesDisabled) return;
 			const nextUrl = detail.url?.trim();
 
 			switch (true) {
@@ -589,7 +609,9 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 			savedGamesState,
 			sessionHistoryMap,
 			syncSearchVisit,
-			syncSessionVisit
+			syncSessionVisit,
+			siteControls.maintenanceMode,
+			siteControls.gamesDisabled
 		]
 	);
 
@@ -748,13 +770,27 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 	const isSpecialPage =
 		activeItem === 'games' ||
 		activeItem === 'settings' ||
-		activeItem === 'playback';
+		activeItem === 'playback' ||
+		activeItem === 'admin';
 
 	const activeSessionHistory =
 		sessionHistoryMap[activeSession] ?? createInitialSessionHistory();
 	const activeHistoryEntry =
 		activeSessionHistory.entries[activeSessionHistory.index] ??
 		createSessionHistoryEntry(newTabUrl, { kind: 'internal' });
+	const liveActivity = isSpecialPage
+		? activeItem === 'admin' ? 'Admin panel' : activeItem[0].toUpperCase() + activeItem.slice(1)
+		: activeHistoryEntry.url
+			? `${activeHistoryEntry.title || 'Browsing'} · ${activeHistoryEntry.url}`
+			: 'Search';
+	const livePreviewUrl = /^https?:\/\//i.test(activeHistoryEntry.url) ? activeHistoryEntry.url : undefined;
+	const blockedReason = !isAdmin && siteControls.maintenanceMode
+		? 'Space is currently in maintenance mode.'
+		: !isAdmin && siteControls.gamesDisabled && (activeItem === 'games' || activeHistoryEntry.kind === 'game')
+			? 'Games are temporarily disabled.'
+			: !isAdmin && siteControls.proxyDisabled && !isSpecialPage && Boolean(activeHistoryEntry.url)
+				? 'Proxy browsing is temporarily disabled.'
+				: null;
 	const canGoBack = activeSessionHistory.index > 0;
 	const canGoForward =
 		activeSessionHistory.index < activeSessionHistory.entries.length - 1;
@@ -1263,6 +1299,8 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 			style={{ ...bgStyle, position: 'relative', zIndex: 1 }}
 		>
 			{particles && <SpaceStars />}
+			<LiveControls activity={liveActivity} previewUrl={livePreviewUrl} />
+			{blockedReason && <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/80 p-6 text-center backdrop-blur-sm"><div className="rounded-xl border border-white/10 bg-[#111] px-8 py-7"><p className="text-lg font-medium text-white">{blockedReason}</p><p className="mt-2 text-sm text-white/40">Please try again later.</p></div></div>}
 			{runtime.mode === 'unavailable' && (
 				<p
 					role="alert"
@@ -1330,6 +1368,7 @@ const App = ({ runtime }: { runtime: SpaceRuntime }) => {
 				</div>
 				<Sidebar
 					activeItem={activeItem}
+					isAdmin={isAdmin}
 					onItemClick={handleNavClick}
 					onHoverChange={setSidebarHovered}
 					sessions={sessions}

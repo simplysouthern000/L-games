@@ -7,10 +7,10 @@
 
 :root,
 :host {
-	--color-primary: #8b5cf6;
-	--color-primary-light: #a78bfa;
-	--color-primary-dark: #7c3aed;
-	--color-accent: #8b5cf6;
+	--color-primary: #0045ff;
+	--color-primary-light: #557dff;
+	--color-primary-dark: #0031b3;
+	--color-accent: #0045ff;
 	--color-background: #000000;
 	--color-surface: #161616;
 	--color-surface-light: #1e1e1e;

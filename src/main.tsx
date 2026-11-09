@@ -15,7 +15,6 @@ import { initialView } from './runtime/entry-view';
 import { installFontRuntime } from '../srv/vite/font/runtime';
 import { reportSvgReady } from './runtime/svg-ready';
 import { shadowMode as getShadowMode } from './runtime/shadow-mode';
-import { injectSpaceAds } from './runtime/ads';
 import { assetUrl } from './runtime/asset-url';
 
 function SvgReady() {
@@ -31,15 +30,28 @@ const GamesPage = lazy(() =>
 const SettingsPage = lazy(() =>
 	import('./pages/SettingsPage.tsx').then(m => ({ default: m.SettingsPage }))
 );
+const AdminPage = lazy(() =>
+	import('./pages/AdminPage.tsx').then(m => ({ default: m.AdminPage }))
+);
 const PlaybackPage = lazy(() =>
 	import('./pages/PlaybackPage.tsx').then(m => ({ default: m.PlaybackPage }))
 );
 
 const boot = async () => {
+	const params = new URLSearchParams(window.location.search);
+	const protectedEntry = window.location.pathname === '/space' || params.get('redirect') === '1';
+	if (window === window.top && !protectedEntry) {
+		window.setTimeout(() => {
+			if (window.location.pathname === '/' && !window.location.search) {
+				window.location.assign('/space');
+			}
+		}, 3000);
+		return;
+	}
+
 	await initSettings();
 
 	if (window === window.top) {
-		const params = new URLSearchParams(window.location.search);
 		if (!params.has('redirect')) {
 			const tabCloak = await readSetting('tabCloak', 'None');
 			const autoBlank = await readSetting('autoAboutBlank', false);
@@ -58,7 +70,6 @@ const boot = async () => {
 		}
 	}
 
-	if (window === window.top) injectSpaceAds();
 	const runtime = await selectRuntime(window, () =>
 		createStandaloneRuntime(prepareRuntimeScripts)
 	);
@@ -245,6 +256,14 @@ const initShadowApp = async (runtime: SpaceRuntime) => {
 						element={
 							<Suspense fallback={<Loading />}>
 								<PlaybackPage />
+							</Suspense>
+						}
+					/>
+					<Route
+						path="admin"
+						element={
+							<Suspense fallback={<Loading />}>
+								<AdminPage />
 							</Suspense>
 						}
 					/>

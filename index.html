@@ -3,6 +3,20 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<style>
+			html,
+			body {
+				background: #000;
+			}
+			html[data-protected-entry] #static-shell {
+				display: none !important;
+			}
+		</style>
+		<script>
+			if (window.location.pathname === '/space' || new URLSearchParams(window.location.search).get('redirect') === '1') {
+				document.documentElement.setAttribute('data-protected-entry', 'true');
+			}
+		</script>
 		<meta
 			name="description"
 			content="EduSecurify provides advanced learning platform solutions with enterprise-grade security, content filtering, and comprehensive student safety tools for educational institutions."
@@ -89,6 +103,10 @@
 			rel="stylesheet"
 		/>
 		<style>
+			html[data-protected-entry] #static-shell {
+				display: none !important;
+			}
+
 			#app-host {
 				display: contents;
 			}
@@ -335,19 +353,11 @@
 				margin: 4rem 0;
 			}
 		</style>
-		<!-- Google tag (gtag.js) -->
-		<script
-			async
-			src="https://www.googletagmanager.com/gtag/js?id=G-3DTW1KTNCF"
-		></script>
 		<script>
-			window.dataLayer = window.dataLayer || [];
-			function gtag() {
-				dataLayer.push(arguments);
+			const params = new URLSearchParams(window.location.search);
+			if (window.location.pathname === '/space' || params.get('redirect') === '1') {
+				document.documentElement.setAttribute('data-protected-entry', 'true');
 			}
-			gtag('js', new Date());
-
-			gtag('config', 'G-3DTW1KTNCF');
 		</script>
 	</head>
 	<body class="text-white overflow-x-hidden relative">
@@ -399,11 +409,13 @@
 					<div class="flex gap-4 items-center h-12 w-[250px]">
 						<button
 							class="px-6 py-2 border border-white/20 bg-transparent text-white rounded-md cursor-pointer text-sm font-medium transition-all hover:bg-white/10 hover:border-white/30"
+							onclick="window.location.href = '/login.html'"
 						>
 							Sign In
 						</button>
 						<button
 							class="btn-primary px-6 py-2 border-none text-white rounded-md cursor-pointer text-sm font-medium transition-all hover:-translate-y-0.5"
+							onclick="window.location.href = '/login.html'"
 						>
 							Get Started
 						</button>

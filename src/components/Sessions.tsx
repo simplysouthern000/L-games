@@ -82,10 +82,7 @@ export const Sessions = ({
 							onMouseLeave={() => setHoveredSession(null)}
 							initial={false}
 							whileHover={{
-								scale: 1.1,
-								boxShadow: isActive
-									? '0 0 15px 3px color-mix(in srgb, var(--color-primary) 40%, transparent), inset 0 0 10px color-mix(in srgb, var(--color-primary-light) 30%, transparent)'
-									: '0 0 10px 1px color-mix(in srgb, var(--color-primary) 20%, transparent), inset 0 0 5px color-mix(in srgb, var(--color-primary-light) 10%, transparent)'
+								scale: 1.04
 							}}
 							whileTap={{ scale: 0.92 }}
 							className="relative mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
@@ -94,10 +91,10 @@ export const Sessions = ({
 									? 'color-mix(in srgb, var(--color-primary) 20%, transparent)'
 									: 'rgba(26, 26, 26, 0.8)',
 								border: isActive
-									? '1px solid color-mix(in srgb, var(--color-primary-light) 50%, transparent)'
+									? '1px solid color-mix(in srgb, var(--color-primary-light) 32%, transparent)'
 									: '1px solid rgba(45, 45, 58, 0.5)',
 								boxShadow: isActive
-									? '0 0 12px 2px color-mix(in srgb, var(--color-primary) 30%, transparent), inset 0 0 8px color-mix(in srgb, var(--color-primary-light) 20%, transparent)'
+									? 'inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 12%, transparent)'
 									: 'inset 0 1px 1px rgba(255,255,255,0.03)'
 							}}
 							transition={{ duration: 0.2 }}
@@ -146,9 +143,9 @@ export const Sessions = ({
 									initial={false}
 									style={{
 										background:
-											'linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 10%, transparent) 0%, color-mix(in srgb, var(--color-primary-light) 5%, transparent) 100%)',
+											'color-mix(in srgb, var(--color-primary) 8%, transparent)',
 										outline:
-											'1px solid color-mix(in srgb, var(--color-primary-light) 30%, transparent)'
+											'1px solid color-mix(in srgb, var(--color-primary-light) 24%, transparent)'
 									}}
 									transition={{
 										type: 'spring',
@@ -166,7 +163,7 @@ export const Sessions = ({
 				{!atMax && (
 					<motion.button
 						onClick={onAddSession}
-						whileHover={{ scale: 1.1 }}
+						whileHover={{ scale: 1.04 }}
 						whileTap={{ scale: 0.9 }}
 						initial={false}
 						transition={{

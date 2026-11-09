@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; color: #fff; background: #050505; }
+    main { width: min(100% - 32px, 390px); padding: 28px; border: 1px solid #252525; border-radius: 18px; background: #161616; box-shadow: 0 18px 60px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { margin: 0 0 24px; color: rgba(255,255,255,.45); font-size: 14px; line-height: 1.5; }
+    label { display: block; margin: 16px 0 7px; color: rgba(255,255,255,.65); font-size: 13px; }
+    input { width: 100%; padding: 12px 13px; border: 1px solid #303030; border-radius: 10px; outline: none; color: #fff; background: #0d0d0d; font: inherit; }
+    input:focus { border-color: #0045ff; box-shadow: 0 0 0 3px rgba(0,69,255,.18); }
+    button { width: 100%; margin-top: 24px; padding: 12px; border: 0; border-radius: 10px; color: #fff; background: #0045ff; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { cursor: wait; opacity: .65; }
+    #error { min-height: 20px; margin: 14px 0 0; color: #fca5a5; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+    <p>This site is private. Sign in to continue.</p>
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button id="submit" type="submit">Sign in</button>
+      <div id="error" role="alert" aria-live="polite"></div>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById('login-form');
+    const button = document.getElementById('submit');
+    const error = document.getElementById('error');
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      button.disabled = true;
+      error.textContent = '';
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value
+          })
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || 'Sign in failed.');
+        }
+        window.location.assign('/space');
+      } catch (loginError) {
+        error.textContent = loginError.message || 'Sign in failed.';
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

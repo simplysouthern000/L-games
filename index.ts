@@ -14,6 +14,7 @@ import gradient from 'gradient-string';
 import { version } from './package.json';
 import { getPlatform } from './srv/platform';
 import routes from './srv/router';
+import { isAuthenticatedRequest } from './srv/auth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,6 +45,11 @@ const server = Fastify({
 			handler(req, res);
 		});
 		srv.on('upgrade', (req, socket, head) => {
+			if (!isAuthenticatedRequest(req)) {
+				socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+				socket.destroy();
+				return;
+			}
 			if (req.url?.endsWith('/w/')) {
 				wisp.routeRequest(req, socket as any, head);
 			} else {

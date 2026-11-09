@@ -1,3 +1,14 @@
 * {
 	box-sizing: border-box;
 }
+
+@keyframes live-banner-in-out {
+	0% { opacity: 0; transform: translate(-50%, -18px); }
+	10% { opacity: 1; transform: translate(-50%, 0); }
+	88% { opacity: 1; transform: translate(-50%, 0); }
+	100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+.live-banner {
+	animation: live-banner-in-out 7.4s ease both;
+}

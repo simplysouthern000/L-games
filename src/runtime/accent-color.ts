@@ -5,7 +5,7 @@ export interface HsvColor {
 }
 
 export const hexToHsv = (hex: string): HsvColor => {
-	const normalized = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : '8b5cf6';
+	const normalized = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : '0045ff';
 	const red = parseInt(normalized.slice(0, 2), 16) / 255;
 	const green = parseInt(normalized.slice(2, 4), 16) / 255;
 	const blue = parseInt(normalized.slice(4, 6), 16) / 255;
