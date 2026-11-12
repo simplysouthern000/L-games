@@ -35,8 +35,8 @@ export const LiveControls = ({ activity, previewUrl }: { activity: string; previ
 	}, []);
 
 	useEffect(() => {
-		document.documentElement.classList.toggle('live-rotated', rotated);
-		return () => document.documentElement.classList.remove('live-rotated');
+		document.getElementById('app-root')?.classList.toggle('live-rotated', rotated);
+		return () => document.getElementById('app-root')?.classList.remove('live-rotated');
 	}, [rotated]);
 
 	useEffect(() => {
